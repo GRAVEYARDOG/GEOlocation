@@ -1,11 +1,39 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Phone Location + Leaflet</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live GPS Tracker</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <script>
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; }
+    #map { height: 100%; width: 100%; }
+    .controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 8px;
+      font-family: sans-serif;
+    }
+    .controls button { margin: 4px 0; padding: 6px 12px; }
+    #status { margin-top: 4px; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div class="controls">
+  <button id="findBtn">Find My Location</button><br>
+  <button id="watchBtn">Start Live Tracking</button><br>
+  <button id="stopWatchBtn" disabled>Stop Live Tracking</button>
+  <div id="status">Status: Idle</div>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
   const map = L.map('map').setView([0, 0], 2);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -17,53 +45,50 @@
   let watchId = null;
   const statusEl = document.getElementById('status');
 
-  function setStatus(msg) {
-    statusEl.textContent = msg;
-  }
+  function setStatus(msg){ statusEl.textContent = "Status: " + msg; }
 
-  function onSuccess(pos) {
+  function updateLocation(pos){
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
     const acc = pos.coords.accuracy;
-    setStatus(`✅ Lat ${lat.toFixed(6)}, Lng ${lng.toFixed(6)} (accuracy ≈ ${Math.round(acc)} m)`);
 
-    if (!marker) {
-      marker = L.marker([lat, lng]).addTo(map);
+    setStatus(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)} (±${Math.round(acc)}m)`);
+
+    if(!marker){
+      marker = L.marker([lat,lng]).addTo(map);
     } else {
-      marker.setLatLng([lat, lng]);
+      marker.setLatLng([lat,lng]);
     }
 
-    if (!accuracyCircle) {
-      accuracyCircle = L.circle([lat, lng], { radius: acc }).addTo(map);
+    if(!accuracyCircle){
+      accuracyCircle = L.circle([lat,lng], { radius: acc }).addTo(map);
     } else {
-      accuracyCircle.setLatLng([lat, lng]);
+      accuracyCircle.setLatLng([lat,lng]);
       accuracyCircle.setRadius(acc);
     }
 
-    map.setView([lat, lng], 17);
+    map.setView([lat,lng], 17);
   }
 
-  function onError(err) {
-    setStatus(`⚠️ Error: ${err.message}`);
+  function onError(err){
+    setStatus(`Error: ${err.message}`);
     console.warn(err);
   }
 
   document.getElementById('findBtn').onclick = () => {
-    if (!navigator.geolocation) return setStatus('❌ Geolocation not supported.');
-
-    setStatus('Requesting location… please wait (may take 30–60 s on first try)');
-    navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+    if(!navigator.geolocation) return setStatus("Geolocation not supported");
+    setStatus("Requesting location...");
+    navigator.geolocation.getCurrentPosition(updateLocation, onError, {
       enableHighAccuracy: true,
-      timeout: 60000,      // 60 seconds
+      timeout: 60000,
       maximumAge: 0
     });
   };
 
   document.getElementById('watchBtn').onclick = () => {
-    if (!navigator.geolocation) return setStatus('❌ Geolocation not supported.');
-
-    setStatus('Watching live location…');
-    watchId = navigator.geolocation.watchPosition(onSuccess, onError, {
+    if(!navigator.geolocation) return setStatus("Geolocation not supported");
+    setStatus("Starting live tracking...");
+    watchId = navigator.geolocation.watchPosition(updateLocation, onError, {
       enableHighAccuracy: true,
       timeout: 60000,
       maximumAge: 0
@@ -72,10 +97,10 @@
   };
 
   document.getElementById('stopWatchBtn').onclick = () => {
-    if (watchId !== null) {
+    if(watchId !== null){
       navigator.geolocation.clearWatch(watchId);
       watchId = null;
-      setStatus('Stopped watching.');
+      setStatus("Live tracking stopped");
       document.getElementById('stopWatchBtn').disabled = true;
     }
   };
