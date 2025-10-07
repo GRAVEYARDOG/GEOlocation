@@ -5,83 +5,81 @@
   <title>Phone Location + Leaflet</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <style>
-    #map { height: 100vh; margin:0; padding:0; }
-    .topbar { position: absolute; z-index: 1000; left:10px; top:10px; background: rgba(255,255,255,0.9); padding:8px; border-radius:6px; }
-  </style>
-</head>
-<body>
-  <div class="topbar">
-    <button id="findBtn">Find my location</button>
-    <button id="watchBtn">Start watch</button>
-    <button id="stopWatchBtn" disabled>Stop watch</button>
-    <div id="status"></div>
-  </div>
-  <div id="map"></div>
-
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map').setView([0,0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+  const map = L.map('map').setView([0, 0], 2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
 
-    let marker = null;
-    let accuracyCircle = null;
-    let watchId = null;
-    const statusEl = document.getElementById('status');
+  let marker = null;
+  let accuracyCircle = null;
+  let watchId = null;
+  const statusEl = document.getElementById('status');
 
-    function setStatus(msg){ statusEl.textContent = msg; }
+  function setStatus(msg) {
+    statusEl.textContent = msg;
+  }
 
-    function onSuccess(pos) {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      const acc = pos.coords.accuracy; // meters
-      setStatus(`Lat ${lat.toFixed(6)}, Lng ${lng.toFixed(6)} (accuracy ≈ ${Math.round(acc)}m)`);
+  function onSuccess(pos) {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    const acc = pos.coords.accuracy;
+    setStatus(`✅ Lat ${lat.toFixed(6)}, Lng ${lng.toFixed(6)} (accuracy ≈ ${Math.round(acc)} m)`);
 
-      if (!marker) {
-        marker = L.marker([lat,lng]).addTo(map);
-      } else {
-        marker.setLatLng([lat,lng]);
-      }
-
-      if (!accuracyCircle) {
-        accuracyCircle = L.circle([lat,lng], {radius: acc}).addTo(map);
-      } else {
-        accuracyCircle.setLatLng([lat,lng]);
-        accuracyCircle.setRadius(acc);
-      }
-
-      map.setView([lat,lng], 17); // zoom in
+    if (!marker) {
+      marker = L.marker([lat, lng]).addTo(map);
+    } else {
+      marker.setLatLng([lat, lng]);
     }
 
-    function onError(err) {
-      setStatus('Error: ' + err.message);
-      console.warn(err);
+    if (!accuracyCircle) {
+      accuracyCircle = L.circle([lat, lng], { radius: acc }).addTo(map);
+    } else {
+      accuracyCircle.setLatLng([lat, lng]);
+      accuracyCircle.setRadius(acc);
     }
 
-    document.getElementById('findBtn').onclick = () => {
-      if (!navigator.geolocation) return setStatus('Geolocation not supported.');
-      setStatus('Requesting location…');
-      navigator.geolocation.getCurrentPosition(onSuccess, onError, { enableHighAccuracy: true, timeout: 10000 });
-    };
+    map.setView([lat, lng], 17);
+  }
 
-    document.getElementById('watchBtn').onclick = () => {
-      if (!navigator.geolocation) return setStatus('Geolocation not supported.');
-      watchId = navigator.geolocation.watchPosition(onSuccess, onError, { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 });
-      setStatus('Watching location...');
-      document.getElementById('stopWatchBtn').disabled = false;
-    };
+  function onError(err) {
+    setStatus(`⚠️ Error: ${err.message}`);
+    console.warn(err);
+  }
 
-    document.getElementById('stopWatchBtn').onclick = () => {
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-        setStatus('Stopped watching.');
-        document.getElementById('stopWatchBtn').disabled = true;
-      }
-    };
-  </script>
+  document.getElementById('findBtn').onclick = () => {
+    if (!navigator.geolocation) return setStatus('❌ Geolocation not supported.');
+
+    setStatus('Requesting location… please wait (may take 30–60 s on first try)');
+    navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+      enableHighAccuracy: true,
+      timeout: 60000,      // 60 seconds
+      maximumAge: 0
+    });
+  };
+
+  document.getElementById('watchBtn').onclick = () => {
+    if (!navigator.geolocation) return setStatus('❌ Geolocation not supported.');
+
+    setStatus('Watching live location…');
+    watchId = navigator.geolocation.watchPosition(onSuccess, onError, {
+      enableHighAccuracy: true,
+      timeout: 60000,
+      maximumAge: 0
+    });
+    document.getElementById('stopWatchBtn').disabled = false;
+  };
+
+  document.getElementById('stopWatchBtn').onclick = () => {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+      setStatus('Stopped watching.');
+      document.getElementById('stopWatchBtn').disabled = true;
+    }
+  };
+</script>
+
 </body>
 </html>
